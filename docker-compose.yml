@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mindcare_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: mindcare
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_USER: mindcare
+      MYSQL_PASSWORD: mindcare123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - mindcare_network
+
+  backend:
+    build: ./backend-laravel
+    container_name: mindcare_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: mysql
+      DB_DATABASE: mindcare
+      DB_USERNAME: mindcare
+      DB_PASSWORD: mindcare123
+    depends_on:
+      - mysql
+    volumes:
+      - ./backend-laravel:/var/www
+    networks:
+      - mindcare_network
+
+  chat-service:
+    build: ./node-chat-service
+    container_name: mindcare_chat
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      BACKEND_API_URL: http://backend:8000/api
+    depends_on:
+      - backend
+    volumes:
+      - ./node-chat-service:/app
+    networks:
+      - mindcare_network
+
+  frontend:
+    build: ./frontend-react
+    container_name: mindcare_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      VITE_API_URL: http://localhost:8000/api
+      VITE_SOCKET_URL: http://localhost:3001
+    depends_on:
+      - backend
+      - chat-service
+    networks:
+      - mindcare_network
+
+volumes:
+  mysql_data:
+
+networks:
+  mindcare_network:
+    driver: bridge
